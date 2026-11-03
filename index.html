@@ -1,0 +1,876 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+</head>
+<body>
+<title>Test Estimation Roadmap</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+/* Layout concept: a highway trip. A road with six stops runs across the top; a car drives to the next stop as each step is completed. One working panel below, one decision per stop. */
+:root{
+  --bg:#EDF1F5; --surface:#FFFFFF; --ink:#14202E; --muted:#566779; --line:#D3DCE5;
+  --road:#222E3B; --road-line:#F2B705; --accent:#0E7C66; --accent-ink:#FFFFFF; --soft:#DCEFE9;
+  --sun:#F2B705; --sun-ink:#3A2B00; --bad:#B3261E; --bad-soft:#FBE5E3; --good:#1E8E5A; --warn:#9A5B00; --warn-soft:#FFF1D6;
+  --font-display:"Bricolage Grotesque","Hanken Grotesk",system-ui,sans-serif;
+  --font-body:"Hanken Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D141C; --surface:#151F2A; --ink:#E8EEF4; --muted:#95A6B7; --line:#273441;
+    --road:#0A0F15; --accent:#35C5A4; --accent-ink:#06231C; --soft:#12332C;
+    --sun:#F5C842; --sun-ink:#2D2200; --bad:#FF8A80; --bad-soft:#3A1B19; --good:#4CD08B; --warn:#F2B34A; --warn-soft:#3A2B10;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D141C; --surface:#151F2A; --ink:#E8EEF4; --muted:#95A6B7; --line:#273441;
+  --road:#0A0F15; --accent:#35C5A4; --accent-ink:#06231C; --soft:#12332C;
+  --sun:#F5C842; --sun-ink:#2D2200; --bad:#FF8A80; --bad-soft:#3A1B19; --good:#4CD08B; --warn:#F2B34A; --warn-soft:#3A2B10;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.5;
+  padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));}
+.wrap{max-width:980px;margin:0 auto}
+h1,h2,h3{font-family:var(--font-display);line-height:1.15;margin:0;text-wrap:balance}
+p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.muted{color:var(--muted)}
+.mono{font-family:var(--font-mono)}
+
+/* header */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;gap:2px;min-width:0}
+.brand h1{font-size:clamp(22px,4vw,30px);font-weight:800;letter-spacing:-.01em}
+.brand span{color:var(--muted);font-size:14px}
+.ghost{background:transparent;border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer;color:var(--muted);font-size:14px}
+.ghost:hover{border-color:var(--accent);color:var(--ink)}
+
+/* road */
+.road{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:6px 18px 4px;margin-bottom:16px}
+.road-inner{--w:40px;--i:0;position:relative;padding-top:46px;padding-bottom:30px}
+.lane{position:absolute;left:0;right:0;top:66px;height:8px;border-radius:4px;background:var(--road);overflow:hidden}
+.lane::before{content:"";position:absolute;inset:3px 0 auto;height:2px;background:repeating-linear-gradient(90deg,var(--muted) 0 10px,transparent 10px 20px);opacity:.55}
+.lane-fill{position:absolute;left:0;top:0;bottom:0;width:calc(var(--w)/2 + (100% - var(--w))*var(--i)/5);background:var(--accent);transition:width .9s cubic-bezier(.65,.05,.25,1)}
+.stations{list-style:none;margin:0;padding:0;display:flex;justify-content:space-between;position:relative}
+.stations li{width:var(--w);position:relative}
+.st{width:var(--w);height:var(--w);border-radius:50%;border:3px solid var(--road);background:var(--surface);color:var(--muted);
+  font-family:var(--font-display);font-weight:800;font-size:16px;cursor:default;display:grid;place-items:center;padding:0;transition:background .3s,border-color .3s,color .3s}
+.st.done{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);cursor:pointer}
+.st.reach{cursor:pointer;border-color:var(--accent)}
+.st.now{background:var(--sun);border-color:var(--sun);color:var(--sun-ink);transform:scale(1.08)}
+.lbl{position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap;text-align:center}
+.st.now + .lbl{color:var(--ink)}
+.car{position:absolute;top:6px;left:calc(var(--w)/2 + (100% - var(--w))*var(--i)/5);transform:translateX(-50%);width:52px;height:30px;
+  transition:left .9s cubic-bezier(.65,.05,.25,1)}
+.car svg{display:block;width:52px;height:30px}
+.wheel{transform-box:fill-box;transform-origin:center}
+.car.moving svg{animation:bob .35s ease-in-out infinite}
+.car.moving .wheel{animation:spin .5s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes bob{50%{transform:translateY(-1.5px)}}
+
+/* panel */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:clamp(16px,3vw,28px);animation:arrive .35s ease both}
+@keyframes arrive{from{opacity:.0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.panel-head{display:flex;flex-direction:column;gap:6px;margin-bottom:18px}
+.panel-head h2{font-size:clamp(22px,3.6vw,28px);font-weight:700}
+.panel-head p{color:var(--muted);max-width:68ch}
+.stop-tag{font-family:var(--font-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:600}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);
+  padding:10px 16px;font-weight:600;cursor:pointer;transition:transform .15s,border-color .15s,background .15s}
+.btn:hover{border-color:var(--accent)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.sun{background:var(--sun);border-color:var(--sun);color:var(--sun-ink)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;flex-wrap:wrap}
+.nav .hint{color:var(--muted);font-size:14px;flex:1;min-width:140px;text-align:end}
+
+/* start */
+.start-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:28px;align-items:start}
+.trip{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0}
+.trip li{display:grid;grid-template-columns:28px 1fr;gap:12px;padding:10px 0;border-bottom:1px dashed var(--line)}
+.trip li:last-child{border-bottom:0}
+.trip b{font-family:var(--font-display)}
+.trip .n{width:28px;height:28px;border-radius:50%;background:var(--soft);color:var(--accent);display:grid;place-items:center;font-weight:800;font-size:14px;font-family:var(--font-display)}
+.story-box{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.story-box .q{font-family:var(--font-display);font-size:20px;font-weight:700}
+.formula{font-family:var(--font-mono);font-size:14px;background:var(--soft);color:var(--ink);padding:8px 10px;border-radius:6px;overflow-x:auto;white-space:pre-wrap}
+
+/* business */
+.biz-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.biz{text-align:start;border:1.5px solid var(--line);background:var(--surface);border-radius:10px;padding:14px;cursor:pointer;display:flex;flex-direction:column;gap:6px;
+  transition:border-color .15s,background .15s,transform .15s}
+.biz:hover{border-color:var(--accent);transform:translateY(-2px)}
+.biz[aria-pressed="true"]{border-color:var(--accent);background:var(--soft)}
+.biz .mark{width:34px;height:34px;border-radius:8px;background:var(--road);color:var(--sun);display:grid;place-items:center;font-family:var(--font-display);font-weight:800}
+.biz[aria-pressed="true"] .mark{background:var(--accent);color:var(--accent-ink)}
+.biz strong{font-family:var(--font-display);font-size:17px}
+.biz span.d{color:var(--muted);font-size:13.5px}
+.biz-detail{margin-top:16px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:6px}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field>span{font-size:13px;font-weight:600;color:var(--muted)}
+.field input,.field select,.field textarea,.cell-in{border:1.5px solid var(--line);border-radius:8px;background:var(--surface);padding:9px 11px;min-width:0;width:100%}
+.field textarea{min-height:120px;font-family:var(--font-mono);font-size:14px;resize:vertical}
+.field input:focus,.field select:focus,.field textarea:focus,.cell-in:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--soft)}
+
+/* techniques */
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px;font-size:14px;cursor:pointer;font-weight:600;color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--road);color:#fff;border-color:var(--road)}
+:root[data-theme="dark"] .chip[aria-pressed="true"]{background:var(--sun);color:var(--sun-ink);border-color:var(--sun)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .chip[aria-pressed="true"]{background:var(--sun);color:var(--sun-ink);border-color:var(--sun)}}
+.banner{display:flex;gap:10px;align-items:flex-start;background:var(--warn-soft);color:var(--ink);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:14.5px}
+.tech-list{display:grid;gap:10px}
+details.tech{border:1.5px solid var(--line);border-radius:10px;background:var(--surface)}
+details.tech[open]{border-color:var(--accent)}
+details.tech summary{list-style:none;cursor:pointer;padding:14px 16px;display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center}
+details.tech summary::-webkit-details-marker{display:none}
+details.tech summary h3{font-size:18px}
+details.tech summary .tag{color:var(--muted);font-size:14px;grid-column:1}
+details.tech summary .arrow{grid-column:2;grid-row:1/3;transition:transform .2s;color:var(--muted)}
+details.tech[open] .arrow{transform:rotate(180deg)}
+.badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
+.badge{font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--muted)}
+.badge.rec{background:var(--sun);border-color:var(--sun);color:var(--sun-ink)}
+.badge.sel{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.tech-body{padding:2px 16px 16px;display:grid;gap:12px}
+.tech-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.tech-body h4{margin:0 0 3px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.tech-body p,.tech-body li{font-size:14.5px}
+.tech-body ul{margin:0;padding-inline-start:18px}
+
+/* calculators */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:14px}
+.quick{border:1.5px dashed var(--line);border-radius:10px;padding:12px 14px;margin-bottom:14px;display:grid;gap:10px}
+.quick-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:10px;align-items:end}
+.abm{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:14px}
+.abm div{border-radius:8px;padding:10px 12px;background:var(--bg);font-size:14px}
+.abm b{font-family:var(--font-mono);color:var(--accent)}
+.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th,td{padding:7px 8px;text-align:start;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);background:var(--bg);position:sticky;top:0;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.idx{color:var(--muted);width:34px;font-family:var(--font-mono);font-size:13px}
+td.calc{font-family:var(--font-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+td.status{font-size:13px;color:var(--bad);min-width:130px}
+td.status.ok{color:var(--good)}
+.cell-in{padding:6px 8px;font-variant-numeric:tabular-nums}
+.cell-in.num{width:84px}
+.cell-in.bad{border-color:var(--bad);background:var(--bad-soft)}
+.actions-row{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
+.steps3{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin:18px 0}
+.step3{border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:8px;align-content:start}
+.step3 .k{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.step3 h4{margin:0;font-family:var(--font-display);font-size:16px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:14px 0}
+.tile{border-radius:10px;padding:14px 16px;border:1px solid var(--line);background:var(--bg);display:grid;gap:2px}
+.tile.big{background:var(--road);color:#fff;border-color:var(--road)}
+:root[data-theme="dark"] .tile.big{background:var(--soft);color:var(--ink);border-color:var(--accent)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .tile.big{background:var(--soft);color:var(--ink);border-color:var(--accent)}}
+.tile .t{font-size:13px;opacity:.8;font-weight:600}
+.tile .v{font-family:var(--font-display);font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.tile .s{font-size:13px;opacity:.85}
+.bands{width:100%;min-width:0}
+.bands td,.bands th{padding:8px 10px}
+.warnbox{background:var(--bad-soft);color:var(--ink);border-radius:8px;padding:10px 12px;font-size:14px;margin:10px 0}
+.note{background:var(--warn-soft);border-radius:8px;padding:10px 12px;font-size:14px;margin:8px 0}
+.sentence{font-family:var(--font-display);font-size:clamp(18px,3vw,22px);font-weight:700;margin:12px 0}
+.chart{width:100%;height:auto;display:block;margin-top:6px}
+.chart text{fill:var(--muted);font-size:11px;font-family:var(--font-body)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:4px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-inline-end:6px;vertical-align:-1px}
+.buf{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:6px}
+.buf input[type=number]{width:84px;border:1.5px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--surface)}
+
+.totalbar{position:sticky;bottom:max(8px,env(safe-area-inset-bottom,0px));z-index:5;margin-top:16px;background:var(--road);color:#fff;border-radius:12px;padding:12px 16px;
+  display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;box-shadow:0 6px 24px rgba(0,0,0,.22)}
+:root[data-theme="dark"] .totalbar{background:var(--soft);color:var(--ink);border:1px solid var(--accent)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .totalbar{background:var(--soft);color:var(--ink);border:1px solid var(--accent)}}
+.tb-l{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.8}
+.tb-v{font-family:var(--font-display);font-size:clamp(20px,4vw,26px);font-weight:800;font-variant-numeric:tabular-nums}
+.tb-s{font-size:13px;opacity:.85;flex-basis:100%}
+/* export */
+.export-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:16px 0}
+.exp{border:1.5px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:8px;align-content:start;background:var(--surface)}
+.exp h3{font-size:17px}
+.exp p{font-size:14px;color:var(--muted)}
+.summary-text{width:100%;min-height:160px;font-family:var(--font-mono);font-size:13px;border:1.5px solid var(--line);border-radius:8px;padding:10px;background:var(--bg)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:max(16px,env(safe-area-inset-bottom,0px));background:var(--road);color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;z-index:30;max-width:calc(100% - 32px);box-shadow:0 6px 24px rgba(0,0,0,.25)}
+:root[data-theme="dark"] .toast{background:var(--sun);color:var(--sun-ink)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .toast{background:var(--sun);color:var(--sun-ink)}}
+
+@media (max-width:640px){
+  .start-grid{grid-template-columns:1fr}
+  .quick-row{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .quick-row .btn{grid-column:1/-1}
+  .road-inner{--w:36px}
+  .lbl{display:none}
+  .st.now + .lbl{display:block}
+  .road{padding-inline:12px}
+  .nav .hint{text-align:start;order:3;flex-basis:100%}
+}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Test Estimation Roadmap</h1>
+      <span>How long will testing this user story take? Drive there in six stops.</span>
+    </div>
+    <button class="ghost" id="theme-btn" type="button" aria-label="Switch between light and dark theme">Light / dark</button>
+  </header>
+
+  <section class="road" aria-label="Your progress along the roadmap">
+    <div class="road-inner" id="road">
+      <div class="lane"><div class="lane-fill"></div></div>
+      <div class="car" id="car" aria-hidden="true">
+        <svg viewBox="0 0 56 30" xmlns="http://www.w3.org/2000/svg">
+          <rect x="3" y="12" width="50" height="11" rx="4.5" fill="var(--sun)"/>
+          <path d="M14 13 L20 4.5 Q21 3.5 22.5 3.5 H36 Q38 3.5 39 5 L45 13 Z" fill="var(--sun)"/>
+          <path d="M18.5 12 L22.5 6 H29 V12 Z M31 12 V6 H36 Q37 6 37.5 6.8 L41.5 12 Z" fill="var(--road)" opacity=".85"/>
+          <rect x="50" y="15" width="4" height="3" rx="1" fill="#fff"/>
+          <g class="wheel"><circle cx="15" cy="24" r="5.2" fill="var(--road)" stroke="var(--surface)" stroke-width="1.5"/><path d="M15 20.6v6.8M11.6 24h6.8" stroke="var(--sun)" stroke-width="1.4"/></g>
+          <g class="wheel"><circle cx="42" cy="24" r="5.2" fill="var(--road)" stroke="var(--surface)" stroke-width="1.5"/><path d="M42 20.6v6.8M38.6 24h6.8" stroke="var(--sun)" stroke-width="1.4"/></g>
+        </svg>
+      </div>
+      <ol class="stations" id="stations"></ol>
+    </div>
+  </section>
+
+  <main id="panel" class="panel" aria-live="polite"></main>
+  <div id="nav" class="nav"></div>
+</div>
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script>
+"use strict";
+/* ---------- helpers ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = (x, d = 2) => (isFinite(x) ? String(+Number(x).toFixed(d)) : "–");
+const clamp0 = x => Math.max(0, x);
+const nums = s => String(s || "").split(/[\s,;]+/).map(parseFloat).filter(isFinite);
+const median = a => { const b = [...a].sort((x, y) => x - y), n = b.length; return n ? (n % 2 ? b[(n - 1) / 2] : (b[n / 2 - 1] + b[n / 2]) / 2) : NaN; };
+const mean = a => a.reduce((s, x) => s + x, 0) / (a.length || NaN);
+const parseLines = s => String(s || "").split(/\n+/).map(l => l.split(",").map(x => x.trim())).filter(p => p[0] !== "" || p.length > 1);
+
+/* ---------- data ---------- */
+const STEPS = ["Start", "Business", "Techniques", "Calculate", "Results", "Export"];
+
+const BIZ = [
+  { id: "ecom", name: "E-commerce", mark: "EC", d: "Shops, carts, checkout, payments", buffer: 15, rec: ["threepoint", "poker"],
+    risk: "Peak-traffic sales, payment gateways, many browser and device combinations, promo and tax rules." },
+  { id: "bank", name: "Banking & FinTech", mark: "BF", d: "Money movement, accounts, cards", buffer: 25, rec: ["threepoint", "wbs"],
+    risk: "Security, compliance and audit trails, reconciliation, third-party bank integrations, rounding rules." },
+  { id: "health", name: "Healthcare", mark: "HC", d: "Patient records, clinics, devices", buffer: 25, rec: ["wbs", "threepoint"],
+    risk: "Patient-data privacy, regulatory validation evidence, safety-critical flows, strict documentation." },
+  { id: "telco", name: "Telecom", mark: "TC", d: "Billing, plans, network systems", buffer: 20, rec: ["ratio", "extrapolation"],
+    risk: "Billing accuracy at volume, many system integrations, long end-to-end flows, legacy interfaces." },
+  { id: "edu", name: "Education", mark: "ED", d: "Learning platforms, exams, portals", buffer: 10, rec: ["poker", "analogous"],
+    risk: "Role-based views, exam-season peaks, accessibility, content and grading rules." },
+  { id: "gov", name: "Government", mark: "GV", d: "Citizen services, forms, registries", buffer: 20, rec: ["wbs", "delphi"],
+    risk: "Accessibility standards, legacy integration, heavy documentation, multi-language content." },
+  { id: "game", name: "Gaming", mark: "GM", d: "Games, matchmaking, in-app items", buffer: 20, rec: ["extrapolation", "expert"],
+    risk: "Device fragmentation, performance, non-deterministic behaviour, balance and economy checks." },
+  { id: "saas", name: "SaaS / B2B", mark: "SB", d: "Subscriptions, tenants, admin tools", buffer: 15, rec: ["extrapolation", "ratio"],
+    risk: "Multi-tenancy, permissions, integrations and APIs, frequent releases that need regression time." },
+  { id: "mobile", name: "Mobile app", mark: "MA", d: "iOS and Android apps", buffer: 20, rec: ["threepoint", "poker"],
+    risk: "OS and device matrix, flaky networks, permissions, store review and upgrade paths." },
+  { id: "other", name: "Other", mark: "··", d: "Name your own domain", buffer: 15, rec: ["threepoint", "delphi"],
+    risk: "No domain profile applies, so a neutral contingency is suggested. Adjust it to your own history." }
+];
+
+const TECH = {
+  ratio: { name: "Ratio-based (dev : test)", fam: "Metrics-based",
+    tag: "Reuse the dev-to-test ratio your organisation has seen before.",
+    how: "Take the development effort for the story and apply a ratio taken from earlier projects, such as 3 : 2 development to testing.",
+    formula: "Test effort = Dev effort × (Test share ÷ Dev share)",
+    when: "You have stable teams, similar projects and trustworthy dev estimates.",
+    pros: ["Very fast", "Easy to explain to managers"], cons: ["Breaks if the ratio is borrowed from a different kind of project", "Inherits any error in the dev estimate"],
+    ex: "Dev needs 80 h. Ratio 3 : 2 gives 80 × 2/3 = 53.3 h of testing." },
+  extrapolation: { name: "Extrapolation", fam: "Metrics-based",
+    tag: "Measure the first iterations, then project forward.",
+    how: "Record actual testing effort and the size of work completed in early iterations, work out the effort per unit of size, and apply it to the next work.",
+    formula: "Effort per point = Past effort ÷ Past points;  Estimate = Effort per point × New points",
+    when: "An Agile team has at least two or three finished iterations with real data.",
+    pros: ["Based on your own facts", "Improves every sprint"], cons: ["Needs history", "Unreliable when team or product changes"],
+    ex: "120 h of testing delivered 30 points, so 4 h per point. A 13-point story needs 52 h." },
+  delphi: { name: "Wideband Delphi", fam: "Expert-based",
+    tag: "Experts estimate separately, discuss the gaps, then repeat.",
+    how: "Each expert estimates anonymously. The group shares the spread, discusses assumptions behind the highest and lowest numbers, and re-estimates until the numbers converge.",
+    formula: "Estimate = mean of the final round;  Spread = (max − min) ÷ mean",
+    when: "The story is new or unclear and you can gather several experienced people.",
+    pros: ["Surfaces hidden assumptions", "Reduces the loudest-voice effect"], cons: ["Takes people's time", "Needs a facilitator"],
+    ex: "Round 2 gives 6, 8, 7, 10, 9 h. The mean is 8 h and the spread is 50 %, so discuss and run another round." },
+  poker: { name: "Planning Poker", fam: "Expert-based",
+    tag: "Agile team voting with Fibonacci-style cards.",
+    how: "Everyone reveals a card at the same time from a scale such as 1, 2, 3, 5, 8, 13, 21. Large gaps trigger a short discussion, then a re-vote until the team agrees.",
+    formula: "Estimate = consensus card × hours per point",
+    when: "A cross-functional Agile team estimates a backlog together.",
+    pros: ["Fun and quick", "Whole team owns the number"], cons: ["Relative sizes, not hours", "Needs a shared definition of a point"],
+    ex: "Votes 3, 5, 5, 8, 5. The consensus is 5 points, or 10 h at 2 h per point." },
+  threepoint: { name: "Three-Point (PERT)", fam: "Hybrid",
+    tag: "Optimistic, most likely and pessimistic guesses give a number and a range.",
+    how: "For each test case estimate a (everything goes right), m (normal) and b (things go wrong). A weighted average gives the expected effort and the spread gives a standard deviation.",
+    formula: "E = (a + 4m + b) ÷ 6      SD = (b − a) ÷ 6",
+    when: "You can describe a best and worst case and want a range you can defend.",
+    pros: ["Shows uncertainty", "Works per test case and sums up cleanly"], cons: ["Needs three honest numbers", "Optimistic people still guess low"],
+    ex: "a = 1 h, m = 2 h, b = 4 h gives E = 2.17 h and SD = 0.5 h." },
+  wbs: { name: "Work Breakdown (WBS)", fam: "Hybrid",
+    tag: "Break testing into tasks, estimate each, add contingency.",
+    how: "List every testing activity for the story (design, data setup, execution, regression, defect retest, reporting), estimate each one and sum them.",
+    formula: "Estimate = Σ task hours × (1 + contingency %)",
+    when: "You need a plan with visible tasks and owners.",
+    pros: ["Nothing forgotten", "Easy to track later"], cons: ["Slow for tiny stories", "Many small guesses can add up to a big error"],
+    ex: "Design 4 h + data 2 h + execution 6 h + regression 3 h + retest 2 h = 17 h, plus 15 % is 19.6 h." },
+  analogous: { name: "Analogous (by comparison)", fam: "Metrics-based",
+    tag: "Start from a similar finished story and adjust.",
+    how: "Pick a completed story that resembles this one, then scale its actual effort for size and complexity differences.",
+    formula: "Estimate = Past effort × Size ratio × Complexity factor",
+    when: "Good history exists and the new story clearly resembles an old one.",
+    pros: ["Quick", "Grounded in real actuals"], cons: ["Only as good as the match", "Hard when nothing similar exists"],
+    ex: "A similar story took 16 h. This one is 1.5× larger and 1.2× more complex: 16 × 1.5 × 1.2 = 28.8 h." },
+  tpa: { name: "Function / Test Point based", fam: "Metrics-based",
+    tag: "Size the functionality, then convert size to hours (simplified).",
+    how: "Count function points or test points for the story, multiply by your hours per point, then adjust for complexity and quality demands. Full Test Point Analysis adds more factors; this is the simplified form.",
+    formula: "Estimate = Points × Hours per point × Complexity factor",
+    when: "Your organisation already measures size in function points.",
+    pros: ["Repeatable and objective", "Comparable across projects"], cons: ["Counting takes training", "Overkill for small stories"],
+    ex: "8 points × 6 h per point × 1.25 complexity = 60 h." },
+  expert: { name: "Expert judgment", fam: "Expert-based",
+    tag: "Ask people who know the product, weight by confidence.",
+    how: "Collect each expert's estimate and how confident they are, then average with confidence as the weight.",
+    formula: "Estimate = Σ(estimate × confidence) ÷ Σ confidence",
+    when: "There is no data yet and you need a quick starting point.",
+    pros: ["Needs no history", "Very fast"], cons: ["Bias and anchoring", "Hard to audit afterwards"],
+    ex: "Sara 10 h (80 %) and Omar 14 h (50 %): (10×0.8 + 14×0.5) ÷ 1.3 = 11.5 h." }
+};
+const TECH_ORDER = ["threepoint", "ratio", "extrapolation", "delphi", "poker", "wbs", "analogous", "tpa", "expert"];
+
+const CALC = {
+  ratio: { defaults: { dev: 80, devShare: 3, testShare: 2 },
+    fields: [{ k: "dev", l: "Development effort (hours)", t: "number" }, { k: "devShare", l: "Ratio: development share", t: "number" }, { k: "testShare", l: "Ratio: testing share", t: "number" }],
+    run(v) { const dev = +v.dev, d = +v.devShare, t = +v.testShare;
+      if (!(dev >= 0) || !(d > 0) || !(t >= 0)) return { err: "Enter dev effort of 0 or more, and ratio shares above 0." };
+      const h = dev * t / d;
+      return { hours: h, lines: ["Test effort = Dev effort × (Test share ÷ Dev share)", `= ${fmt(dev)} × (${fmt(t)} ÷ ${fmt(d)}) = ${fmt(h)} h`], table: [["Dev effort", fmt(dev) + " h"], ["Ratio dev : test", `${fmt(d)} : ${fmt(t)}`]] }; } },
+  extrapolation: { defaults: { pastEffort: 120, pastPoints: 30, newPoints: 13 },
+    fields: [{ k: "pastEffort", l: "Past testing effort (hours)", t: "number" }, { k: "pastPoints", l: "Points delivered in that time", t: "number" }, { k: "newPoints", l: "Size of this story (points)", t: "number" }],
+    run(v) { const pe = +v.pastEffort, pp = +v.pastPoints, np = +v.newPoints;
+      if (!(pe >= 0) || !(pp > 0) || !(np >= 0)) return { err: "Past points must be above 0; the other values 0 or more." };
+      const rate = pe / pp, h = rate * np;
+      return { hours: h, lines: ["Effort per point = Past effort ÷ Past points", `= ${fmt(pe)} ÷ ${fmt(pp)} = ${fmt(rate)} h per point`, `Estimate = ${fmt(rate)} × ${fmt(np)} = ${fmt(h)} h`], table: [["Effort per point", fmt(rate) + " h"], ["New story size", fmt(np) + " points"]] }; } },
+  delphi: { defaults: { votes: "6, 8, 7, 10, 9", threshold: 15 },
+    fields: [{ k: "votes", l: "Latest-round estimates in hours, comma separated", t: "text" }, { k: "threshold", l: "Converged when spread is at most (%)", t: "number" }],
+    run(v) { const a = nums(v.votes); if (a.length < 2 || a.some(x => x < 0)) return { err: "Enter at least two estimates, 0 or more." };
+      const m = mean(a), mn = Math.min(...a), mx = Math.max(...a), spread = m > 0 ? (mx - mn) / m * 100 : 0, ok = spread <= +v.threshold;
+      return { hours: m, lines: ["Estimate = mean of the final round", `= (${a.map(x => fmt(x)).join(" + ")}) ÷ ${a.length} = ${fmt(m)} h`, `Spread = (${fmt(mx)} − ${fmt(mn)}) ÷ ${fmt(m)} = ${fmt(spread, 1)} %`],
+        notes: [ok ? "The experts have converged. This is a good number to use." : "The spread is still wide. Ask the lowest and highest estimators to explain their assumptions, then run another round."],
+        table: a.map((x, i) => ["Expert " + (i + 1), fmt(x) + " h"]) }; } },
+  poker: { defaults: { votes: "3, 5, 5, 8, 5", hpp: 2 },
+    fields: [{ k: "votes", l: "Cards played (from 1, 2, 3, 5, 8, 13, 21)", t: "text" }, { k: "hpp", l: "Testing hours per point", t: "number" }],
+    run(v) { const a = nums(v.votes), S = [1, 2, 3, 5, 8, 13, 21], hpp = +v.hpp;
+      if (a.length < 2 || !(hpp >= 0)) return { err: "Enter at least two cards and hours per point of 0 or more." };
+      const near = x => S.reduce((b, s, i) => Math.abs(s - x) < Math.abs(S[b] - x) ? i : b, 0);
+      const gap = near(Math.max(...a)) - near(Math.min(...a)), c = median(a), h = c * hpp;
+      return { hours: h, lines: ["Estimate = consensus card × hours per point", `Consensus (median of the cards) = ${fmt(c)} points`, `= ${fmt(c)} × ${fmt(hpp)} = ${fmt(h)} h`],
+        notes: [gap > 2 ? `The lowest and highest cards are ${gap} steps apart. Let both explain, then vote again.` : "The cards are close together, so the team agrees well enough."],
+        table: a.map((x, i) => ["Player " + (i + 1), fmt(x) + " points"]) }; } },
+  wbs: { defaults: { tasks: "Design test cases, 4\nPrepare test data, 2\nExecute tests, 6\nRegression run, 3\nDefect retest, 2", cont: 15 },
+    fields: [{ k: "tasks", l: "One task per line: name, hours", t: "area" }, { k: "cont", l: "Contingency (%)", t: "number" }],
+    run(v) { const rows = parseLines(v.tasks).map(p => [p[0] || "Task", parseFloat(p[1])]);
+      if (!rows.length || rows.some(r => !isFinite(r[1]) || r[1] < 0)) return { err: "Each line needs a name, a comma, and hours of 0 or more." };
+      const c = +v.cont; if (!(c >= 0)) return { err: "Contingency must be 0 or more." };
+      const sum = rows.reduce((s, r) => s + r[1], 0), h = sum * (1 + c / 100);
+      return { hours: h, lines: ["Estimate = Σ task hours × (1 + contingency %)", `Σ tasks = ${fmt(sum)} h`, `= ${fmt(sum)} × (1 + ${fmt(c)} ÷ 100) = ${fmt(h)} h`], table: rows.map(r => [r[0], fmt(r[1]) + " h"]) }; } },
+  analogous: { defaults: { pastEffort: 16, sizeRatio: 1.5, complexity: 1.2 },
+    fields: [{ k: "pastEffort", l: "Actual effort of the similar story (hours)", t: "number" }, { k: "sizeRatio", l: "Size ratio (this story ÷ old story)", t: "number" }, { k: "complexity", l: "Complexity factor", t: "number" }],
+    run(v) { const p = +v.pastEffort, s = +v.sizeRatio, c = +v.complexity;
+      if (!(p >= 0) || !(s > 0) || !(c > 0)) return { err: "Past effort 0 or more, ratio and complexity above 0." };
+      const h = p * s * c;
+      return { hours: h, lines: ["Estimate = Past effort × Size ratio × Complexity factor", `= ${fmt(p)} × ${fmt(s)} × ${fmt(c)} = ${fmt(h)} h`], table: [["Similar story", fmt(p) + " h"], ["Size ratio", fmt(s) + "×"], ["Complexity", fmt(c) + "×"]] }; } },
+  tpa: { defaults: { pts: 8, hpp: 6, cf: 1.25 },
+    fields: [{ k: "pts", l: "Function or test points", t: "number" }, { k: "hpp", l: "Hours per point", t: "number" }, { k: "cf", l: "Complexity / quality factor", t: "number" }],
+    run(v) { const p = +v.pts, hp = +v.hpp, cf = +v.cf;
+      if (!(p >= 0) || !(hp >= 0) || !(cf > 0)) return { err: "Points and hours per point 0 or more, factor above 0." };
+      const h = p * hp * cf;
+      return { hours: h, lines: ["Estimate = Points × Hours per point × Factor", `= ${fmt(p)} × ${fmt(hp)} × ${fmt(cf)} = ${fmt(h)} h`], table: [["Points", fmt(p)], ["Hours per point", fmt(hp)], ["Factor", fmt(cf)]] }; } },
+  expert: { defaults: { experts: "Sara, 10, 80\nOmar, 14, 50\nNour, 12, 70" },
+    fields: [{ k: "experts", l: "One expert per line: name, hours, confidence %", t: "area" }],
+    run(v) { const rows = parseLines(v.experts).map(p => [p[0] || "Expert", parseFloat(p[1]), parseFloat(p[2])]);
+      if (!rows.length || rows.some(r => !isFinite(r[1]) || !isFinite(r[2]) || r[1] < 0 || r[2] <= 0)) return { err: "Each line needs: name, hours, confidence above 0." };
+      const w = rows.reduce((s, r) => s + r[2], 0), h = rows.reduce((s, r) => s + r[1] * r[2], 0) / w;
+      return { hours: h, lines: ["Estimate = Σ(hours × confidence) ÷ Σ confidence", `= ${rows.map(r => `${fmt(r[1])}×${fmt(r[2])}`).join(" + ")} ÷ ${fmt(w)} = ${fmt(h)} h`], table: rows.map(r => [r[0], `${fmt(r[1])} h at ${fmt(r[2])} %`]) }; } }
+};
+
+/* ---------- state ---------- */
+const S = {
+  step: 0, reach: 0, biz: null, bizName: "", tech: null, hpd: 8, unit: "hours", filter: "All",
+  rows: [
+    { name: "Test case 1", a: "1", m: "2", b: "4" }, { name: "Test case 2", a: "0.5", m: "1", b: "2.5" },
+    { name: "Test case 3", a: "2", m: "3", b: "6" }, { name: "Test case 4", a: "1", m: "1.5", b: "3" },
+    { name: "Test case 5", a: "2", m: "4", b: "8" }
+  ],
+  qf: { a: "1", m: "2", b: "4" }, calc: {}, bufOn: true, bufPct: 15, retestPct: 20
+};
+for (const k in CALC) S.calc[k] = { ...CALC[k].defaults };
+const bizObj = () => BIZ.find(b => b.id === S.biz);
+const bizLabel = () => { const b = bizObj(); return !b ? "Not chosen" : b.id === "other" && S.bizName.trim() ? S.bizName.trim() : b.name; };
+const unitF = () => S.unit === "hours" ? 1 : S.unit === "minutes" ? 1 / 60 : S.hpd;
+const unitAbbr = () => S.unit === "hours" ? "h" : S.unit === "minutes" ? "min" : "d";
+
+/* ---------- three-point maths ---------- */
+function tpCompute() {
+  const f = unitF(); let sumE = 0, sumV = 0, bad = 0;
+  const rows = S.rows.map((r, i) => {
+    const a = parseFloat(r.a), m = parseFloat(r.m), b = parseFloat(r.b); let err = "";
+    if ([a, m, b].some(x => !isFinite(x))) err = "Enter a, m and b";
+    else if ([a, m, b].some(x => x < 0)) err = "No negative values";
+    else if (a > m) err = "a must be ≤ m";
+    else if (m > b) err = "m must be ≤ b";
+    let E = NaN, sd = NaN;
+    if (!err) { E = (a + 4 * m + b) / 6; sd = (b - a) / 6; sumE += E; sumV += sd * sd; } else bad++;
+    return { i, name: r.name, a, m, b, E, sd, err };
+  });
+  const sdT = Math.sqrt(sumV);
+  return { rows, sumE, sdT, sumH: sumE * f, sdH: sdT * f, bad, allValid: bad === 0 && rows.length > 0 && S.hpd > 0, f };
+}
+
+function finalResult() {
+  let r;
+  if (S.tech === "threepoint") {
+    const c = tpCompute();
+    r = { hours: c.sumH, sd: c.sdH, ok: c.allValid, tp: c,
+      lines: ["E = (a + 4m + b) ÷ 6 for each test case, then add them up", `Σ E = ${fmt(c.sumE)} ${unitAbbr()} = ${fmt(c.sumH)} h`, `Total SD = √(Σ SD²) = ${fmt(c.sdH)} h`] };
+  } else {
+    r = CALC[S.tech].run(S.calc[S.tech]); r.ok = !r.err; r.sd = null;
+  }
+  const rk = 1 + Math.max(0, +S.retestPct || 0) / 100, ck = S.bufOn ? 1 + (+S.bufPct || 0) / 100 : 1, k = rk * ck;
+  r.rk = rk; r.ck = ck; r.k = k; r.sub = (r.hours || 0) * rk; r.retestH = r.sub - (r.hours || 0); r.adj = r.sub * ck; r.contH = r.adj - r.sub;
+  r.nCases = r.tp ? r.tp.rows.length : null;
+  if (r.sd != null) { r.band = n => [clamp0((r.hours - n * r.sd) * k), (r.hours + n * r.sd) * k]; }
+  return r;
+}
+const days = h => h / S.hpd;
+
+/* ---------- bell curve ---------- */
+function bellSVG(mu, sd) {
+  if (!(sd > 0)) return '<p class="muted">Every test case has the same optimistic and pessimistic value, so there is no spread to draw.</p>';
+  const W = 640, H = 230, L = 24, R = 24, T = 16, B = 46, x0 = mu - 4 * sd, x1 = mu + 4 * sd;
+  const X = v => L + (v - x0) / (x1 - x0) * (W - L - R), Y = p => T + (1 - p) * (H - T - B), pdf = v => Math.exp(-0.5 * ((v - mu) / sd) ** 2);
+  const path = (a, b, close) => { let s = ""; for (let i = 0; i <= 60; i++) { const v = a + (b - a) * i / 60; s += (i ? " L" : "M") + X(v).toFixed(1) + " " + Y(pdf(v)).toFixed(1); }
+    return close ? s + ` L${X(b).toFixed(1)} ${Y(0)} L${X(a).toFixed(1)} ${Y(0)} Z` : s; };
+  let ticks = "";
+  for (let k = -2; k <= 2; k++) { const v = mu + k * sd, x = X(v);
+    ticks += `<line x1="${x}" x2="${x}" y1="${Y(0)}" y2="${Y(0) + 5}" stroke="var(--muted)"/><text x="${x}" y="${Y(0) + 18}" text-anchor="middle">${fmt(clamp0(v), 1)} h</text><text x="${x}" y="${Y(0) + 32}" text-anchor="middle">${k === 0 ? "expected" : (k > 0 ? "+" : "−") + Math.abs(k) + "σ"}</text>`; }
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Bell curve of the total testing effort around ${fmt(mu, 1)} hours">
+    <path d="${path(x0, x1, true)}" fill="var(--line)" opacity=".5"/>
+    <path d="${path(mu - 2 * sd, mu + 2 * sd, true)}" fill="var(--accent)" opacity=".28"/>
+    <path d="${path(mu - sd, mu + sd, true)}" fill="var(--accent)" opacity=".55"/>
+    <path d="${path(x0, x1, false)}" fill="none" stroke="var(--ink)" stroke-width="2"/>
+    <line x1="${X(mu)}" x2="${X(mu)}" y1="${Y(1) - 4}" y2="${Y(0)}" stroke="var(--sun)" stroke-width="2.5"/>
+    <line x1="${L}" x2="${W - R}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--muted)"/>${ticks}</svg>
+    <div class="legend"><span><i style="background:var(--accent);opacity:.7"></i>68 % likely range (±1σ)</span><span><i style="background:var(--accent);opacity:.35"></i>95 % likely range (±2σ)</span><span><i style="background:var(--sun)"></i>Expected total</span></div>`;
+}
+
+/* ---------- road ---------- */
+function drawRoad() {
+  const road = $("#road"); road.style.setProperty("--i", S.step);
+  $("#stations").innerHTML = STEPS.map((n, i) => {
+    const cls = i === S.step ? "now" : i < S.step ? "done" : i <= S.reach ? "reach" : "";
+    const ok = i <= S.reach;
+    return `<li><button type="button" class="st ${cls}" data-go="${i}" ${ok ? "" : "tabindex='-1' aria-disabled='true'"} aria-label="Stop ${i + 1}: ${n}${i === S.step ? ", current stop" : ""}" ${i === S.step ? 'aria-current="step"' : ""}>${i < S.step ? "&#10003;" : i + 1}</button><span class="lbl">${n}</span></li>`;
+  }).join("");
+}
+function moveCar() { const c = $("#car"); c.classList.add("moving"); clearTimeout(moveCar.t); moveCar.t = setTimeout(() => c.classList.remove("moving"), 950); }
+
+/* ---------- panels ---------- */
+function head(i, title, sub) { return `<div class="panel-head"><span class="stop-tag">Stop ${i + 1} of 6 · ${STEPS[i]}</span><h2>${title}</h2><p>${sub}</p></div>`; }
+
+function p0() {
+  return `${head(0, "Estimate the testing for one user story", "Pick your business, compare every estimation technique, then calculate. You leave with a number you can explain and a file you can share.")}
+  <div class="start-grid">
+    <ol class="trip">
+      <li><span class="n">1</span><div><b>Tell us your business</b><br><span class="muted">This tunes the contingency and the suggested techniques.</span></div></li>
+      <li><span class="n">2</span><div><b>Browse the techniques</b><br><span class="muted">Nine of them, with formulas, pros, cons and examples.</span></div></li>
+      <li><span class="n">3</span><div><b>Calculate</b><br><span class="muted">Three-Point gets a full per-test-case calculator.</span></div></li>
+      <li><span class="n">4</span><div><b>Read the results</b><br><span class="muted">Expected effort, confidence ranges and person-days.</span></div></li>
+      <li><span class="n">5</span><div><b>Export</b><br><span class="muted">CSV, JSON, a report page, or a copied summary.</span></div></li>
+    </ol>
+    <div class="story-box">
+      <span class="stop-tag">The question this answers</span>
+      <div class="q">“As a customer, I can pay with a saved card.” How long will testing take?</div>
+      <p class="muted">Different techniques give different answers. Three-Point gives a range, which is usually more honest than a single number.</p>
+      <div class="formula">E  = (a + 4m + b) ÷ 6\nSD = (b − a) ÷ 6</div>
+      <button class="btn primary" type="button" data-act="next">Start the engine</button>
+    </div>
+  </div>`;
+}
+
+function p1() {
+  const b = bizObj();
+  return `${head(1, "What type of system are you testing?", "The domain decides how much risk to plan for and which techniques fit best.")}
+  <div class="biz-grid" role="group" aria-label="Business type">
+    ${BIZ.map(x => `<button type="button" class="biz" data-biz="${x.id}" aria-pressed="${S.biz === x.id}"><span class="mark">${x.mark}</span><strong>${x.name}</strong><span class="d">${x.d}</span></button>`).join("")}
+  </div>
+  ${b ? `<div class="biz-detail">
+    ${b.id === "other" ? `<label class="field"><span>Name your business type</span><input id="biz-name" type="text" maxlength="60" placeholder="e.g. Logistics, Insurance, Travel" value="${esc(S.bizName)}"></label>` : ""}
+    <p><b>What usually hurts in ${esc(bizLabel())}:</b> ${esc(b.risk)}</p>
+    <p><b>Suggested contingency:</b> +${b.buffer} % on top of the estimate. <b>Best-fit techniques:</b> ${b.rec.map(r => esc(TECH[r].name)).join(" and ")}.</p>
+  </div>` : ""}`;
+}
+
+function p2() {
+  const b = bizObj(), fams = ["All", "Metrics-based", "Expert-based", "Hybrid"];
+  const list = TECH_ORDER.filter(id => S.filter === "All" || TECH[id].fam === S.filter);
+  return `${head(2, "Every testing estimation technique", "Open a card to see how it works. Choose one to carry on to the calculator.")}
+  ${b ? `<div class="banner"><span>For <b>${esc(bizLabel())}</b>, techniques marked <b>Best fit</b> match your usual risks.</span></div>` : ""}
+  <div class="chips" role="group" aria-label="Filter by family">${fams.map(f => `<button type="button" class="chip" data-filter="${f}" aria-pressed="${S.filter === f}">${f}</button>`).join("")}</div>
+  <div class="tech-list">
+  ${list.map(id => { const t = TECH[id]; return `<details class="tech">
+    <summary><h3>${t.name}</h3><svg class="arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      <span class="tag">${t.tag}</span>
+      <span class="badges" style="grid-column:1"><span class="badge">${t.fam}</span>${b && b.rec.includes(id) ? '<span class="badge rec">Best fit</span>' : ""}${S.tech === id ? '<span class="badge sel">Selected</span>' : ""}</span></summary>
+    <div class="tech-body">
+      <div><h4>How it works</h4><p>${t.how}</p></div>
+      <div><h4>Formula</h4><div class="formula">${esc(t.formula)}</div></div>
+      <div class="tech-cols"><div><h4>Use it when</h4><p>${t.when}</p></div><div><h4>Pros</h4><ul>${t.pros.map(x => `<li>${x}</li>`).join("")}</ul></div><div><h4>Cons</h4><ul>${t.cons.map(x => `<li>${x}</li>`).join("")}</ul></div></div>
+      <div><h4>Example</h4><p>${t.ex}</p></div>
+      <div><button type="button" class="btn ${id === "threepoint" ? "primary" : ""}" data-use="${id}">Use this technique</button></div>
+    </div></details>`; }).join("")}
+  </div>`;
+}
+
+function p3() {
+  return S.tech === "threepoint" ? p3TP() : p3Simple();
+}
+
+function rowsHTML() {
+  return S.rows.map((r, i) => `<tr><td class="idx">${i + 1}</td>
+   <td><input class="cell-in" data-i="${i}" data-k="name" value="${esc(r.name)}" aria-label="Name of test case ${i + 1}"></td>
+   ${["a", "m", "b"].map(k => `<td><input class="cell-in num" type="number" inputmode="decimal" min="0" step="any" data-i="${i}" data-k="${k}" value="${esc(r[k])}" aria-label="${k} for test case ${i + 1}"></td>`).join("")}
+   <td class="calc" id="e-${i}">–</td><td class="calc" id="sd-${i}">–</td><td class="status" id="st-${i}"></td></tr>`).join("");
+}
+
+function p3TP() {
+  const u = unitAbbr();
+  return `${head(3, "Three-Point Estimation", "Give three honest guesses per test case. The maths updates as you type.")}
+  <div class="form-grid">
+    <label class="field"><span>Number of test cases</span><input id="tp-n" type="number" min="1" max="200" step="1" value="${S.rows.length}"></label>
+    <label class="field"><span>Unit of your a, m and b</span><select id="tp-unit"><option value="hours" ${S.unit === "hours" ? "selected" : ""}>Hours</option><option value="minutes" ${S.unit === "minutes" ? "selected" : ""}>Minutes</option><option value="days" ${S.unit === "days" ? "selected" : ""}>Days</option></select></label>
+    <label class="field"><span>Working hours per day</span><input id="hpd" type="number" min="1" max="24" step="0.5" value="${S.hpd}"></label>
+    <label class="field"><span>Retesting allowance (%)</span><input id="retest-pct" type="number" min="0" max="300" step="1" value="${S.retestPct}"></label>
+  </div>
+  <div class="abm">
+    <div><b>a</b> Optimistic: nothing goes wrong, data and build are ready.</div>
+    <div><b>m</b> Most likely: a normal run with the usual small snags.</div>
+    <div><b>b</b> Pessimistic: defects, blocked environments, retests.</div>
+  </div>
+  <div class="quick"><strong>Fill every test case at once <span class="muted" style="font-weight:500">(optional)</span></strong>
+    <div class="quick-row">
+      <label class="field"><span>a (${u})</span><input id="qf-a" type="number" min="0" step="any" value="${esc(S.qf.a)}"></label>
+      <label class="field"><span>m (${u})</span><input id="qf-m" type="number" min="0" step="any" value="${esc(S.qf.m)}"></label>
+      <label class="field"><span>b (${u})</span><input id="qf-b" type="number" min="0" step="any" value="${esc(S.qf.b)}"></label>
+      <button type="button" class="btn" data-act="qf-apply">Apply to all</button>
+    </div></div>
+  <div class="table-wrap"><table><thead><tr><th>#</th><th>Test case</th><th>a (${u})</th><th>m (${u})</th><th>b (${u})</th><th>E (${u})</th><th>SD (${u})</th><th>Check</th></tr></thead><tbody id="tp-body">${rowsHTML()}</tbody></table></div>
+  <p class="muted" style="font-size:13px;margin-top:8px">Example values are filled in so you can see the tool working. Replace them with your own.</p>
+  <div class="actions-row"><button type="button" class="btn" data-act="tp-example">Load example</button><button type="button" class="btn" data-act="tp-clear">Clear all values</button></div>
+  <div id="tp-live"></div>
+  <div id="total-bar" class="totalbar" aria-live="polite"></div>`;
+}
+
+function updateTP() {
+  const c = tpCompute(), u = unitAbbr();
+  c.rows.forEach(r => {
+    const e = $("#e-" + r.i), s = $("#sd-" + r.i), st = $("#st-" + r.i); if (!e) return;
+    e.textContent = r.err ? "–" : fmt(r.E); s.textContent = r.err ? "–" : fmt(r.sd);
+    st.textContent = r.err || "OK"; st.className = "status" + (r.err ? "" : " ok");
+    document.querySelectorAll(`[data-i="${r.i}"]`).forEach(inp => { if (["a", "m", "b"].includes(inp.dataset.k)) inp.classList.toggle("bad", !!r.err && r.err !== "Enter a, m and b" && (r.err.includes(inp.dataset.k) || r.err.startsWith("No"))); });
+  });
+  const first = c.rows.find(r => !r.err), live = $("#tp-live"); if (!live) return;
+  let html = "";
+  if (c.bad) html += `<div class="warnbox">${c.bad} test case${c.bad > 1 ? "s need" : " needs"} fixing before you can continue. Totals below use the valid rows only.</div>`;
+  if (!(S.hpd > 0)) html += '<div class="warnbox">Working hours per day must be above 0.</div>';
+  if (first) {
+    const nValid = c.rows.filter(r => !r.err).length;
+    html += `<div class="steps3">
+      <div class="step3"><span class="k">Step 1</span><h4>Expected time per test case</h4><div class="formula">E = (a + 4m + b) ÷ 6\n${esc(first.name || "Test case")}: (${fmt(first.a)} + 4×${fmt(first.m)} + ${fmt(first.b)}) ÷ 6 = ${fmt(first.E)} ${u}</div></div>
+      <div class="step3"><span class="k">Step 2</span><h4>Uncertainty per test case</h4><div class="formula">SD = (b − a) ÷ 6\n${esc(first.name || "Test case")}: (${fmt(first.b)} − ${fmt(first.a)}) ÷ 6 = ${fmt(first.sd)} ${u}</div></div>
+      <div class="step3"><span class="k">Step 3</span><h4>Add them up</h4><div class="formula">Σ E = ${fmt(c.sumE)} ${u} over ${nValid} test case${nValid > 1 ? "s" : ""}\nTotal SD = √(SD₁² + SD₂² + …) = ${fmt(c.sdT)} ${u}</div><p class="muted" style="font-size:13px">Variances add, not the SDs, because not every test case goes badly at once.</p></div></div>`;
+    html += bandsHTML(c.sumH, c.sdH, 1);
+    html += bellSVG(c.sumH, c.sdH);
+  } else html += '<p class="muted">Enter valid values for at least one test case to see the totals.</p>';
+  live.innerHTML = html;
+  setNav();
+}
+
+function bandsHTML(mu, sd, k) {
+  const row = (lab, n) => { const lo = clamp0((mu - n * sd) * k), hi = (mu + n * sd) * k; return `<tr><td>${lab}</td><td class="calc">${fmt(lo, 1)} – ${fmt(hi, 1)} h</td><td class="calc">${fmt(days(lo), 1)} – ${fmt(days(hi), 1)} days</td></tr>`; };
+  return `<div class="tiles"><div class="tile big"><span class="t">Total estimation (expected)</span><span class="v">${fmt(mu * k, 1)} h</span><span class="s">${fmt(days(mu * k), 1)} person-days at ${fmt(S.hpd)} h per day</span></div>
+    <div class="tile"><span class="t">Total standard deviation</span><span class="v">${fmt(sd * k, 2)} h</span><span class="s">How far the real total may wander</span></div></div>
+    <div class="table-wrap"><table class="bands"><thead><tr><th>Confidence</th><th>Hours</th><th>Person-days</th></tr></thead><tbody>${row("68 % (±1 SD)", 1)}${row("95 % (±2 SD)", 2)}${row("99.7 % (±3 SD)", 3)}</tbody></table></div>`;
+}
+
+function p3Simple() {
+  const c = CALC[S.tech], v = S.calc[S.tech];
+  return `${head(3, TECH[S.tech].name, "Fill in the numbers. The estimate updates as you type.")}
+  <div class="formula" style="margin-bottom:14px">${esc(TECH[S.tech].formula)}</div>
+  <div class="form-grid">
+    ${c.fields.map(f => f.t === "area" ? `<label class="field" style="grid-column:1/-1"><span>${f.l}</span><textarea data-ck="${f.k}">${esc(v[f.k])}</textarea></label>`
+      : `<label class="field"><span>${f.l}</span><input data-ck="${f.k}" ${f.t === "number" ? 'type="number" step="any" inputmode="decimal"' : 'type="text"'} value="${esc(v[f.k])}"></label>`).join("")}
+    <label class="field"><span>Working hours per day</span><input id="hpd" type="number" min="1" max="24" step="0.5" value="${S.hpd}"></label>
+    <label class="field"><span>Retesting allowance (%)</span><input id="retest-pct" type="number" min="0" max="300" step="1" value="${S.retestPct}"></label>
+  </div>
+  <p class="muted" style="font-size:13px;margin-bottom:8px">Example values are filled in so you can see the tool working. Replace them with your own.</p>
+  <div id="calc-out"></div>
+  <div id="total-bar" class="totalbar" aria-live="polite"></div>`;
+}
+function updateSimple() {
+  const out = $("#calc-out"); if (!out) return;
+  const r = CALC[S.tech].run(S.calc[S.tech]);
+  if (r.err) { out.innerHTML = `<div class="warnbox">${esc(r.err)}</div>`; setNav(); return; }
+  out.innerHTML = `<div class="tiles"><div class="tile big"><span class="t">Estimated testing effort</span><span class="v">${fmt(r.hours, 1)} h</span><span class="s">${fmt(days(r.hours), 1)} person-days at ${fmt(S.hpd)} h per day</span></div></div>
+    <div class="formula">${r.lines.map(esc).join("\n")}</div>
+    ${(r.notes || []).map(n => `<div class="note">${esc(n)}</div>`).join("")}
+    <p class="muted" style="font-size:13px;margin-top:10px">This technique gives one number. Three-Point shows a range if you want to express uncertainty.</p>`;
+  setNav();
+}
+
+function p4() {
+  const b = bizObj();
+  return `${head(4, "Your estimate", "Here is the number, how it was made, and how sure you can be of it.")}
+  <div class="buf"><label for="retest-pct">Retesting allowance: defect retests and regression re-runs, as a share of the base estimate</label>
+   <span style="display:flex;align-items:center;gap:6px"><input id="retest-pct" type="number" min="0" max="300" step="1" value="${S.retestPct}" aria-label="Retesting percent"> %</span></div>
+  <div class="buf"><label><input type="checkbox" id="buf-on" ${S.bufOn ? "checked" : ""}> Add domain contingency for ${esc(bizLabel())}</label>
+   <span style="display:flex;align-items:center;gap:6px"><input id="buf-pct" type="number" min="0" max="100" step="1" value="${S.bufPct}" aria-label="Contingency percent"> %</span></div>
+  <p class="muted" style="font-size:13px;margin-bottom:10px">${b ? esc(b.risk) : ""}</p>
+  <div id="res-live"></div>`;
+}
+function breakdownHTML(r) {
+  const row = (lab, h, strong) => `<tr><td>${strong ? "<b>" + lab + "</b>" : lab}</td><td class="calc">${strong ? "<b>" : ""}${fmt(h, 1)} h${strong ? "</b>" : ""}</td><td class="calc">${strong ? "<b>" : ""}${fmt(days(h), 1)} days${strong ? "</b>" : ""}</td></tr>`;
+  const n = r.nCases;
+  return `<div class="table-wrap" style="margin:14px 0"><table class="bands"><thead><tr><th>Total estimation</th><th>Hours</th><th>Person-days</th></tr></thead><tbody>
+    ${row("Base estimate" + (n ? ` (${n} test case${n > 1 ? "s" : ""})` : ""), r.hours)}
+    ${row(`Retesting +${fmt(S.retestPct, 1)} %`, r.retestH)}
+    ${row("Subtotal", r.sub)}
+    ${row(S.bufOn ? `Contingency +${fmt(S.bufPct, 1)} %` : "Contingency (off)", r.contH)}
+    ${row("Total estimation", r.adj, true)}</tbody></table></div>`;
+}
+function updateResults() {
+  const live = $("#res-live"); if (!live) return;
+  const r = finalResult(); let html = "";
+  if (!r.ok) { live.innerHTML = '<div class="warnbox">Go back to Calculate and fix the highlighted values.</div>'; return; }
+  const t = TECH[S.tech];
+  if (S.tech === "threepoint") {
+    const [lo, hi] = r.band(2);
+    html += `<p class="sentence">We are 95 % confident testing will take between ${fmt(days(lo), 1)} and ${fmt(days(hi), 1)} person-days.</p>`;
+    html += breakdownHTML(r);
+    html += bandsHTML(r.hours, r.sd, r.k);
+    html += `<div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>#</th><th>Test case</th><th>a</th><th>m</th><th>b</th><th>E</th><th>SD</th></tr></thead><tbody>${r.tp.rows.map(x => `<tr><td class="idx">${x.i + 1}</td><td>${esc(x.name)}</td><td class="calc">${fmt(x.a)}</td><td class="calc">${fmt(x.m)}</td><td class="calc">${fmt(x.b)}</td><td class="calc">${fmt(x.E)}</td><td class="calc">${fmt(x.sd)}</td></tr>`).join("")}</tbody></table></div><p class="muted" style="font-size:13px;margin-top:6px">Values are in ${S.unit}.</p>`;
+    html += bellSVG(r.hours * r.k, r.sd * r.k);
+  } else {
+    html += `<p class="sentence">Total estimation: about ${fmt(days(r.adj), 1)} person-days (${fmt(r.adj, 1)} hours), including retesting${S.bufOn ? " and contingency" : ""}.</p>
+      <div class="tiles"><div class="tile big"><span class="t">Total estimation · ${esc(t.name)}</span><span class="v">${fmt(r.adj, 1)} h</span><span class="s">${fmt(days(r.adj), 1)} person-days</span></div>
+      <div class="tile"><span class="t">Base estimate</span><span class="v">${fmt(r.hours, 1)} h</span><span class="s">${fmt(days(r.hours), 1)} person-days before retesting and contingency</span></div></div>
+      ${breakdownHTML(r)}
+      <div class="formula">${r.lines.map(esc).join("\n")}</div>
+      ${(r.notes || []).map(n => `<div class="note">${esc(n)}</div>`).join("")}`;
+  }
+  live.innerHTML = html;
+}
+
+function p5() {
+  const r = finalResult();
+  return `${head(5, "Take it with you", "Save the estimate or copy a summary for your ticket or test plan.")}
+  <div class="tiles"><div class="tile big"><span class="t">Total estimation · ${esc(bizLabel())} · ${esc(TECH[S.tech].name)}</span><span class="v">${fmt(days(r.adj), 1)} days</span><span class="s">${fmt(r.adj, 1)} hours including ${fmt(S.retestPct, 0)} % retesting${r.band ? `, 95 % range ${fmt(days(r.band(2)[0]), 1)} to ${fmt(days(r.band(2)[1]), 1)} days` : ""}</span></div></div>
+  <div class="export-grid" id="exp-grid">
+    <div class="exp" data-file><h3>Spreadsheet (CSV)</h3><p>Opens in Excel or Google Sheets, with every input and result.</p><button class="btn primary" type="button" data-exp="csv">Save CSV</button></div>
+    <div class="exp" data-file><h3>Report page (HTML)</h3><p>A tidy one-page report you can open and share.</p><button class="btn" type="button" data-exp="html">Save report</button></div>
+    <div class="exp" data-file><h3>Data (JSON)</h3><p>All inputs and results for tools and scripts.</p><button class="btn" type="button" data-exp="json">Save JSON</button></div>
+    <div class="exp"><h3>Copy summary</h3><p>Plain text for Jira, Confluence or chat.</p><button class="btn" type="button" data-exp="copy">Copy summary</button></div>
+  </div>
+  <div id="exp-note"></div>
+  <div class="actions-row"><button class="btn sun" type="button" data-act="restart">Start a new estimate</button></div>`;
+}
+
+/* ---------- export ---------- */
+function model() {
+  const r = finalResult(), t = TECH[S.tech], now = new Date();
+  return { r, t, date: now.toISOString().slice(0, 10), biz: bizLabel() };
+}
+function csvCell(x) { const s = String(x ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+function buildCSV() {
+  const { r, t, date, biz } = model(); const rows = [["Test Estimation Roadmap"], ["Date", date], ["Business type", biz], ["Technique", t.name], ["Working hours per day", S.hpd], []];
+  if (S.tech === "threepoint") {
+    rows.push(["#", "Test case", `a Optimistic (${S.unit})`, `m Most likely (${S.unit})`, `b Pessimistic (${S.unit})`, `E expected (${S.unit})`, `SD (${S.unit})`]);
+    r.tp.rows.forEach(x => rows.push([x.i + 1, x.name, fmt(x.a, 4), fmt(x.m, 4), fmt(x.b, 4), fmt(x.E, 4), fmt(x.sd, 4)]));
+    rows.push([], ["Formula E", "(a + 4m + b) / 6"], ["Formula SD", "(b - a) / 6"], ["Total SD formula", "sqrt(sum of SD squared)"]);
+  } else { rows.push(["Input", "Value"]); (r.table || []).forEach(x => rows.push(x)); rows.push([], ["Formula", TECH[S.tech].formula]); }
+  rows.push([], ["Total expected (hours)", fmt(r.hours, 3)]);
+  if (r.sd != null) { rows.push(["Total SD (hours)", fmt(r.sd, 3)]); [1, 2, 3].forEach(n => rows.push([`${["68", "95", "99.7"][n - 1]}% range (hours)`, `${fmt(r.band(n)[0], 2)} - ${fmt(r.band(n)[1], 2)}`])); }
+  if (r.nCases) rows.push(["Number of test cases", r.nCases]);
+  rows.push(["Retesting allowance (%)", fmt(S.retestPct, 1)], ["Retesting (hours)", fmt(r.retestH, 2)], ["Subtotal with retesting (hours)", fmt(r.sub, 2)],
+    ["Contingency applied (%)", S.bufOn ? fmt(S.bufPct, 1) : 0], ["Contingency (hours)", fmt(r.contH, 2)],
+    ["TOTAL ESTIMATION (hours)", fmt(r.adj, 2)], ["TOTAL ESTIMATION (person-days)", fmt(days(r.adj), 2)]);
+  return "﻿" + rows.map(r => r.map(csvCell).join(",")).join("\r\n");
+}
+function buildJSON() {
+  const { r, t, date, biz } = model();
+  return JSON.stringify({ date, businessType: biz, technique: t.name, formula: t.formula, hoursPerDay: S.hpd, inputUnit: S.tech === "threepoint" ? S.unit : "hours",
+    inputs: S.tech === "threepoint" ? r.tp.rows.map(x => ({ testCase: x.name, a: x.a, m: x.m, b: x.b, expected: x.E, sd: x.sd })) : S.calc[S.tech],
+    totals: { expectedHours: +r.hours.toFixed(3), sdHours: r.sd != null ? +r.sd.toFixed(3) : null, testCases: r.nCases, retestPercent: +S.retestPct, retestHours: +r.retestH.toFixed(2), subtotalHours: +r.sub.toFixed(2), contingencyPercent: S.bufOn ? +S.bufPct : 0, planningHours: +r.adj.toFixed(2), planningPersonDays: +days(r.adj).toFixed(2),
+      ranges: r.sd != null ? { "68%": r.band(1).map(x => +x.toFixed(2)), "95%": r.band(2).map(x => +x.toFixed(2)), "99.7%": r.band(3).map(x => +x.toFixed(2)) } : null } }, null, 2);
+}
+function buildText() {
+  const { r, t, date, biz } = model();
+  let s = `Test estimation (${date})\nBusiness type: ${biz}\nTechnique: ${t.name}\n`;
+  if (S.tech === "threepoint") s += `Test cases: ${r.tp.rows.length}, Expected total ${fmt(r.hours, 1)} h, SD ${fmt(r.sd, 2)} h\n95% range: ${fmt(r.band(2)[0], 1)} - ${fmt(r.band(2)[1], 1)} h (${fmt(days(r.band(2)[0]), 1)} - ${fmt(days(r.band(2)[1]), 1)} person-days)\n`;
+  else s += r.lines.join("\n") + "\n";
+  s += `Base estimate: ${fmt(r.hours, 1)} h\nRetesting: +${fmt(S.retestPct, 0)}% (${fmt(r.retestH, 1)} h)\nContingency: +${S.bufOn ? fmt(S.bufPct, 0) : 0}% (${fmt(r.contH, 1)} h)\nTotal estimation: ${fmt(r.adj, 1)} h = ${fmt(days(r.adj), 1)} person-days (${fmt(S.hpd)} h/day)`;
+  return s;
+}
+function buildHTML() {
+  const { r, t, date, biz } = model();
+  const tbl = S.tech === "threepoint"
+    ? `<table><tr><th>#</th><th>Test case</th><th>a</th><th>m</th><th>b</th><th>E</th><th>SD</th></tr>${r.tp.rows.map(x => `<tr><td>${x.i + 1}</td><td>${esc(x.name)}</td><td>${fmt(x.a)}</td><td>${fmt(x.m)}</td><td>${fmt(x.b)}</td><td>${fmt(x.E)}</td><td>${fmt(x.sd)}</td></tr>`).join("")}</table><p>Values in ${S.unit}.</p>`
+    : `<table>${(r.table || []).map(x => `<tr><td>${esc(x[0])}</td><td>${esc(x[1])}</td></tr>`).join("")}</table>`;
+  const bands = r.sd != null ? `<table><tr><th>Confidence</th><th>Hours</th><th>Person-days</th></tr>${[1, 2, 3].map(n => { const b = r.band(n); return `<tr><td>${["68 %", "95 %", "99.7 %"][n - 1]}</td><td>${fmt(b[0], 1)} – ${fmt(b[1], 1)}</td><td>${fmt(days(b[0]), 1)} – ${fmt(days(b[1]), 1)}</td></tr>`; }).join("")}</table>` : "";
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Test estimation report</title>
+<style>body{font:15px/1.5 system-ui,Segoe UI,sans-serif;color:#14202E;max-width:760px;margin:32px auto;padding:0 16px}h1{margin:0 0 4px}h2{margin-top:28px;font-size:18px}table{border-collapse:collapse;width:100%;margin:8px 0}th,td{border:1px solid #D3DCE5;padding:6px 10px;text-align:left}th{background:#EDF1F5}.big{background:#222E3B;color:#fff;border-radius:10px;padding:16px 20px;margin:16px 0}.big b{font-size:32px}pre{background:#DCEFE9;padding:10px;border-radius:6px;white-space:pre-wrap}.m{color:#566779}</style></head><body>
+<h1>Test estimation report</h1><p class="m">${date} · ${esc(biz)} · ${esc(t.name)}</p>
+<div class="big"><b>${fmt(days(r.adj), 1)} person-days</b><br>total estimation: ${fmt(r.adj, 1)} hours at ${fmt(S.hpd)} h per day<br>Base ${fmt(r.hours, 1)} h + retesting ${fmt(S.retestPct, 0)} % (${fmt(r.retestH, 1)} h)${S.bufOn ? ` + contingency ${fmt(S.bufPct, 0)} % (${fmt(r.contH, 1)} h)` : ""}</div>
+<h2>Inputs</h2>${tbl}<h2>Method</h2><pre>${esc(t.formula)}\n${esc(r.lines.join("\n"))}</pre>${bands ? `<h2>Confidence ranges</h2>${bands}` : ""}
+<p class="m">Created with Test Estimation Roadmap.</p></body></html>`;
+}
+
+let dlP = null;
+function getDl() { if (!dlP) dlP = (window.claude && window.claude.use ? window.claude.use("downloads") : Promise.resolve(null)).catch(() => null); return dlP; }
+let toastT;
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 3200); }
+const standalone = !(window.claude && window.claude.use);
+async function saveFile(name, data) {
+  if (standalone) {
+    const url = URL.createObjectURL(new Blob([data], { type: "application/octet-stream" })), a = document.createElement("a");
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+    return toast("Saved " + name);
+  }
+  const d = await getDl();
+  if (!d) { toast("Saving files is not available here. Use Copy summary instead."); return; }
+  try { await d.save({ filename: name, data }); toast("Saved " + name); }
+  catch (e) { toast(e && e.code === "declined" ? "Save cancelled." : "Could not save the file" + (e && e.message ? ": " + e.message : ".")); }
+}
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); toast("Summary copied."); }
+  catch (e) { $("#exp-note").innerHTML = `<p class="muted" style="margin:8px 0">Copy was blocked here. Select the text below and copy it.</p><textarea class="summary-text" id="sum-ta" readonly></textarea>`; const ta = $("#sum-ta"); ta.value = text; ta.focus(); ta.select(); }
+}
+
+/* ---------- navigation ---------- */
+function canNext() {
+  switch (S.step) {
+    case 0: return [true, ""];
+    case 1: return [!!S.biz, "Pick a business type to continue."];
+    case 2: return [!!S.tech, "Choose a technique with “Use this technique”."];
+    case 3: { const ok = S.tech === "threepoint" ? tpCompute().allValid : !CALC[S.tech].run(S.calc[S.tech]).err && S.hpd > 0; return [ok, "Fix the highlighted values to continue."]; }
+    case 4: return [finalResult().ok, "Go back and fix your inputs."];
+    default: return [false, ""];
+  }
+}
+function updateTotalBar() {
+  const el = $("#total-bar"); if (!el) return;
+  const r = finalResult();
+  if (!r.ok) { el.innerHTML = '<span class="tb-l">Total time</span><span class="tb-s">Fix the highlighted values to see the total.</span>'; return; }
+  el.innerHTML = `<span class="tb-l">Total time</span><span class="tb-v">${fmt(days(r.adj), 1)} person-days · ${fmt(r.adj, 1)} h</span><span class="tb-s">Base ${fmt(r.hours, 1)} h + retesting ${fmt(S.retestPct, 0)} % (${fmt(r.retestH, 1)} h)${S.bufOn ? ` + contingency ${fmt(S.bufPct, 0)} % (${fmt(r.contH, 1)} h)` : ""}</span>`;
+}
+function setNav() {
+  updateTotalBar();
+  const nav = $("#nav"); if (S.step === 0) { nav.innerHTML = ""; return; }
+  const [ok, hint] = canNext();
+  const labels = ["", "Continue to techniques", "", "See my results", "Export", ""];
+  nav.innerHTML = `<button type="button" class="btn" data-act="back">Back</button><span class="hint">${ok ? "" : esc(hint)}</span>${S.step < 5 && S.step !== 2 ? `<button type="button" class="btn primary" data-act="next" ${ok ? "" : "disabled"}>${labels[S.step]}</button>` : S.step === 2 ? `<button type="button" class="btn primary" data-act="next" ${ok ? "" : "disabled"}>Continue to calculator</button>` : ""}`;
+}
+function go(i) {
+  if (i < 0 || i > 5 || i > S.reach) return;
+  const moved = i !== S.step; S.step = i;
+  render(); if (moved) { moveCar(); window.scrollTo({ top: 0, behavior: "smooth" }); }
+}
+function next() { const [ok] = canNext(); if (!ok || S.step >= 5) return; S.reach = Math.max(S.reach, S.step + 1); go(S.step + 1); }
+
+function render() {
+  drawRoad();
+  const P = $("#panel");
+  P.style.animation = "none"; void P.offsetWidth; P.style.animation = "";
+  P.innerHTML = [p0, p1, p2, p3, p4, p5][S.step]();
+  setNav();
+  if (S.step === 3) { S.tech === "threepoint" ? updateTP() : updateSimple(); }
+  if (S.step === 4) updateResults();
+  if (S.step === 5) getDl().then(d => { if (!d && !standalone) { document.querySelectorAll("[data-file]").forEach(e => e.hidden = true); $("#exp-note").innerHTML = '<div class="note">File saving is not available in this view. Use Copy summary.</div>'; } });
+}
+
+/* ---------- events ---------- */
+document.addEventListener("click", e => {
+  const el = e.target.closest("[data-go],[data-act],[data-biz],[data-filter],[data-use],[data-exp]"); if (!el) return;
+  const d = el.dataset;
+  if (d.go !== undefined) return go(+d.go);
+  if (d.biz) { S.biz = d.biz; S.bufPct = bizObj().buffer; return render(); }
+  if (d.filter) { S.filter = d.filter; return render(); }
+  if (d.use) { S.tech = d.use; S.reach = Math.max(S.reach, 3); return go(3); }
+  if (d.exp) {
+    if (d.exp === "csv") return saveFile("test-estimate.csv", buildCSV());
+    if (d.exp === "json") return saveFile("test-estimate.json", buildJSON());
+    if (d.exp === "html") return saveFile("test-estimate-report.html", buildHTML());
+    return copyText(buildText());
+  }
+  switch (d.act) {
+    case "next": return next();
+    case "back": return go(S.step - 1);
+    case "qf-apply": ["a", "m", "b"].forEach(k => { S.qf[k] = $("#qf-" + k).value; });
+      S.rows.forEach(r => { r.a = S.qf.a; r.m = S.qf.m; r.b = S.qf.b; }); $("#tp-body").innerHTML = rowsHTML(); return updateTP();
+    case "tp-example": S.rows = [["Valid login", 0.5, 1, 2], ["Invalid password", 0.5, 1, 1.5], ["Checkout with saved card", 2, 3, 6], ["Payment declined", 1, 2, 4], ["Order confirmation email", 1, 1.5, 3]].map(x => ({ name: x[0], a: String(x[1]), m: String(x[2]), b: String(x[3]) })); S.unit = "hours"; return render();
+    case "tp-clear": S.rows.forEach(r => { r.a = r.m = r.b = ""; }); $("#tp-body").innerHTML = rowsHTML(); return updateTP();
+    case "restart": S.step = 0; S.reach = 0; S.biz = null; S.tech = null; return render();
+  }
+});
+document.addEventListener("input", e => {
+  const t = e.target;
+  if (t.id === "tp-n") { let n = parseInt(t.value, 10); if (!isFinite(n)) return; n = Math.min(200, Math.max(1, n));
+    while (S.rows.length < n) { const l = S.rows[S.rows.length - 1] || { a: "", m: "", b: "" }; S.rows.push({ name: "Test case " + (S.rows.length + 1), a: l.a, m: l.m, b: l.b }); }
+    S.rows.length = n; $("#tp-body").innerHTML = rowsHTML(); return updateTP(); }
+  if (t.id === "hpd") { S.hpd = parseFloat(t.value) || 0; return S.tech === "threepoint" ? updateTP() : updateSimple(); }
+  if (t.dataset.i !== undefined && t.dataset.k) { S.rows[+t.dataset.i][t.dataset.k] = t.value; return updateTP(); }
+  if (t.dataset.ck) { S.calc[S.tech][t.dataset.ck] = t.value; return updateSimple(); }
+  if (t.id === "biz-name") { S.bizName = t.value; return; }
+  if (t.id === "retest-pct") { S.retestPct = Math.max(0, parseFloat(t.value) || 0); return S.step === 3 ? (S.tech === "threepoint" ? updateTP() : updateSimple()) : updateResults(); }
+  if (t.id === "buf-pct") { S.bufPct = parseFloat(t.value) || 0; return updateResults(); }
+  if (["qf-a", "qf-m", "qf-b"].includes(t.id)) { S.qf[t.id.slice(3)] = t.value; }
+});
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (t.id === "tp-unit") { S.unit = t.value; return render(); }
+  if (t.id === "buf-on") { S.bufOn = t.checked; return updateResults(); }
+});
+$("#theme-btn").addEventListener("click", () => {
+  const r = document.documentElement, dark = r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  r.dataset.theme = dark ? "light" : "dark";
+});
+
+render();
+</script>
+
+</body>
+</html>
